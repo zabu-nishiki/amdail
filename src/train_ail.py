@@ -208,26 +208,6 @@ valid_dataloader = torch.utils.data.DataLoader(valid_dataset,
                                                drop_last=False,
                                                collate_fn=train_dataset.collate_fn)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #################################################################
 # Configures of Finetuning.
 #################################################################
@@ -237,33 +217,6 @@ replay_num          = int(epoch*data_num/buffer_num)
 gene_step_num       = int(buffer_num/batch_size)
 gene_training_steps = replay_num*gene_step_num
 gene_warmup_steps   = int(0.2*replay_num*gene_step_num)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 disc_batch_size     = int(batch_size/2)
 disc_step_num       = int(buffer_num/disc_batch_size)
@@ -293,15 +246,9 @@ gene_optimizer = torch.optim.AdamW(gene_model.parameters(),
                                    weight_decay=weight_decay,
                                    maximize=True)
 #################################################################
-if model_type=="gpt2":
-    pre_gene_model = GPT2LMHeadModel.from_pretrained("gpt2-medium")
-    #sft_gene_model = GPT2LMHeadModel.from_pretrained("gpt2-medium")
-elif model_type=="opt":
-    pre_gene_model = OPTForCausalLM.from_pretrained("facebook/opt-350m")
-    #sft_gene_model = OPTForCausalLM.from_pretrained("facebook/opt-350m")
-elif model_type=="bloom":
-    pre_gene_model = BloomForCausalLM.from_pretrained("bigscience/bloomz-560m")
-    #sft_gene_model = BloomForCausalLM.from_pretrained("bigscience/bloomz-560m")
+if model_type=="gpt2"   : pre_gene_model = GPT2LMHeadModel.from_pretrained("gpt2-medium")
+elif model_type=="opt"  : pre_gene_model = OPTForCausalLM.from_pretrained("facebook/opt-350m")
+elif model_type=="bloom": pre_gene_model = BloomForCausalLM.from_pretrained("bigscience/bloomz-560m")
 #################################################################
 pre_gene_model.resize_token_embeddings(len(gene_tokenizer))
 if model_type=="bart": pre_gene_model.config.is_encoder_decoder = False
@@ -309,19 +256,10 @@ pre_gene_model.layer_norm_epsilon = layer_norm_epsilon
 pre_gene_model.temperature = temperature
 for p in pre_gene_model.parameters(): p.grad = None
 #################################################################
-#sft_gene_model.resize_token_embeddings(len(gene_tokenizer))
-#if model_type=="bart": sft_gene_model.config.is_encoder_decoder = False
-#sft_gene_model.layer_norm_epsilon = layer_norm_epsilon
-#sft_gene_model.temperature = temperature
-#for p in sft_gene_model.parameters(): p.grad = None
-#################################################################
 class DebertaClassifier(nn.Module):
     def __init__(self):
         super(DebertaClassifier, self).__init__()
         self.deberta = DebertaModel.from_pretrained("microsoft/deberta-base")
-        #self.deberta = DebertaV2Model.from_pretrained("microsoft/deberta-v2-xlarge")
-        #self.config  = DebertaConfig()
-        #self.deberta = DebertaModel(self.config)
         self.linear = nn.Linear(self.deberta.config.hidden_size, 2)
     def forward(self, input_ids, attention_mask=None):
         output = self.deberta(input_ids=input_ids,
@@ -337,12 +275,8 @@ disc_optimizer = torch.optim.AdamW(disc_model.parameters(),
                                    weight_decay=weight_decay,
                                    maximize=True)
 #################################################################
-if model_mode=="train" :
-    pre_gene_model.train()
-    #sft_gene_model.train()
-elif model_mode=="eval":
-    pre_gene_model.eval()
-    #sft_gene_model.eval()
+if model_mode=="train" : pre_gene_model.train()
+elif model_mode=="eval": pre_gene_model.eval()
 gene_model.train()
 disc_model.train()
 #################################################################
@@ -361,8 +295,6 @@ disc_scheduler = get_linear_schedule_with_warmup(disc_optimizer,
                                                  num_training_steps=disc_training_steps)
 gene_model, pre_gene_model, disc_model, gene_optimizer, disc_optimizer = \
     accelerator.prepare(gene_model, pre_gene_model, disc_model, gene_optimizer, disc_optimizer)
-#gene_model, pre_gene_model, sft_gene_model, disc_model, gene_optimizer, disc_optimizer = \
-#    accelerator.prepare(gene_model, pre_gene_model, sft_gene_model, disc_model, gene_optimizer, disc_optimizer)
 
 #################################################################
 # Train
@@ -372,19 +304,14 @@ sample_rand_idx = rand_idx["rand_idx_3"][:(epoch+1)*data_num]
 if gene_model_idx>=0:
     gene_model.load_state_dict(torch.load(model_path     + dataset_type + "/model/sft/gene_model_"  + str(model_type) + "_" + str(seed) + "seed_" + str(gene_model_idx%10) + "idx.pth"))
     pre_gene_model.load_state_dict(torch.load(model_path + dataset_type + "/model/sft/gene_model_"  + str(model_type) + "_" + str(seed) + "seed_" + str(gene_model_idx%10) + "idx.pth"))
-    #gene_model.load_state_dict(torch.load(model_path     + dataset_type + "/model/zero_ppo/gene_model_" + str(model_type) + "_" + str(seed) + "seed_" + str(gene_model_idx%10) + "idx.pth"))    
-    #pre_gene_model.load_state_dict(torch.load(model_path + dataset_type + "/model/zero_ppo/gene_model_" + str(model_type) + "_" + str(seed) + "seed_" + str(gene_model_idx%10) + "idx.pth"))
-    disc_model.load_state_dict(torch.load(model_path     + dataset_type + "/model/disc/disc_model_"     + str(model_type) + "_" + str(seed) + "seed_" + str(gene_model_idx%10) + "idx_" + str(disc_model_idx%10) + "idx.pth"))
-    #sft_gene_model.load_state_dict(torch.load(model_path + dataset_type + "/model/sft/gene_model_"  + str(model_type) + "_" + str(seed) + "seed_" + str(gene_model_idx%10) + "idx.pth"))
+    disc_model.load_state_dict(torch.load(model_path     + dataset_type + "/model/disc/disc_model_" + str(model_type) + "_" + str(seed) + "seed_" + str(gene_model_idx%10) + "idx_" + str(disc_model_idx%10) + "idx.pth"))
 else:
     gene_model.load_state_dict(torch.load(model_path     + dataset_type + "/model/sft/gene_model_"  + str(model_type) + "_" + str(seed) + "seed.pth"))
     pre_gene_model.load_state_dict(torch.load(model_path + dataset_type + "/model/sft/gene_model_"  + str(model_type) + "_" + str(seed) + "seed.pth"))
     disc_model.load_state_dict(torch.load(model_path     + dataset_type + "/model/disc/disc_model_" + str(model_type) + "_" + str(seed) + "seed.pth"))
-    #sft_gene_model.load_state_dict(torch.load(model_path + dataset_type + "/model/sft/gene_model_"  + str(model_type) + "_" + str(seed) + "seed.pth"))
 for p in gene_model.parameters()    : p.grad = None
 for p in pre_gene_model.parameters(): p.grad = None
 for p in disc_model.parameters()    : p.grad = None
-#for p in sft_gene_model.parameters(): p.grad = None
 
 #################################################################
 # Loss Log
@@ -474,10 +401,6 @@ for replay_itr in range(replay_num):
     if model_mode=="train" : gene_model.train()
     elif model_mode=="eval": gene_model.eval()
     #################################################################
-    #temperature                = random.uniform(1e-8, 1.0)
-    #gene_model.temperature     = temperature
-    #pre_gene_model.temperature = temperature
-    #################################################################
     for step_itr in range(gene_step_num):
         #################################################################
         # Decode Sentence
@@ -539,24 +462,6 @@ for replay_itr in range(replay_num):
             item = " ".join(item)
             item = item.strip()
             ppo_gene_joint_text.append(item)
-        """
-        for item in ppo_real_joint_text_:
-            item = item.replace(gene_tokenizer.pad_token, "")
-            item = item.split(gene_tokenizer.bos_token)[1]
-            item = gene_tokenizer.bos_token + " " + item + " " + gene_tokenizer.eos_token
-            item = re.split(" +", item)
-            item = " ".join(item)
-            item = item.strip()
-            ppo_real_joint_text.append(item)
-        for item in ppo_gene_joint_text_:
-            item = item.replace(gene_tokenizer.pad_token, "")
-            item = item.split(gene_tokenizer.bos_token)[1]
-            item = gene_tokenizer.bos_token + " " + item + " " + gene_tokenizer.eos_token
-            item = re.split(" +", item)
-            item = " ".join(item)
-            item = item.strip()
-            ppo_gene_joint_text.append(item)
-        """
         ppo_real_text_buffer.extend(ppo_real_joint_text)
         ppo_gene_text_buffer.extend(ppo_gene_joint_text)
         del ppo_real_joint_text_, ppo_gene_joint_text_, \
@@ -638,10 +543,6 @@ for replay_itr in range(replay_num):
         #################################################################
         #################################################################
         #################################################################
-        #ppo_joint_input_ids = disc_tokenizer(ppo_joint_text,
-        #                                     padding=True,
-        #                                     return_tensors="pt",
-        #                                     add_special_tokens=False)["input_ids"]
         ppo_joint_mask = torch.where(ppo_joint_input_ids==disc_tokenizer.pad_token_id, 0, 1)
         del ppo_joint_text
         torch.cuda.empty_cache()
@@ -651,8 +552,6 @@ for replay_itr in range(replay_num):
         real_logit = disc_logit[:disc_batch_size]
         gene_logit = disc_logit[disc_batch_size:]
         
-        #ppo_real_confid = log_softmax(real_logit)[:, 0].exp()
-        #ppo_gene_confid = log_softmax(gene_logit)[:, 0].exp()
         ppo_real_confid = log_softmax(torch.cat((real_logit[:, 0].unsqueeze(-1), gene_logit[:, 0].unsqueeze(-1)), dim=1))[:, 0].exp()
         ppo_gene_confid = log_softmax(torch.cat((real_logit[:, 0].unsqueeze(-1), gene_logit[:, 0].unsqueeze(-1)), dim=1))[:, 1].exp()
         ppo_real_confid_buffer.extend(ppo_real_confid.tolist())
@@ -716,10 +615,6 @@ for replay_itr in range(replay_num):
         #################################################################
         #################################################################
         #################################################################
-        #disc_joint_input_ids = disc_tokenizer(disc_joint_text,
-        #                                      padding=True,
-        #                                      return_tensors="pt",
-        #                                      add_special_tokens=False)["input_ids"]
         disc_joint_mask = torch.where(disc_joint_input_ids==disc_tokenizer.pad_token_id, 0, 1)
         del disc_joint_text_, disc_joint_text
         torch.cuda.empty_cache()
@@ -729,8 +624,6 @@ for replay_itr in range(replay_num):
         real_logit = disc_logit[:disc_batch_size]
         gene_logit = disc_logit[disc_batch_size:]
         
-        #real_confid = log_softmax(real_logit)[:, 0]
-        #gene_confid = log_softmax(gene_logit)[:, 1]
         real_confid = log_softmax(torch.cat((real_logit[:, 0].unsqueeze(-1), gene_logit[:, 0].unsqueeze(-1)), dim=1))[:, 0]
         gene_confid = log_softmax(torch.cat((real_logit[:, 1].unsqueeze(-1), gene_logit[:, 1].unsqueeze(-1)), dim=1))[:, 1]
         del disc_joint_input_ids, disc_joint_mask, disc_logit, real_logit, gene_logit
@@ -740,8 +633,6 @@ for replay_itr in range(replay_num):
         # Discriminator Loss
         #################################################################
         disc_loss = disc_alpha * (real_confid[:].sum() + gene_confid[:].sum()) / batch_size
-        #disc_loss = disc_alpha * (torch.log(real_confid[:]).sum() \
-        #                        + torch.log(gene_confid[:]).sum()) / batch_size
         disc_loss_log.append(disc_loss.item())
         del real_confid, gene_confid
         torch.cuda.empty_cache()
@@ -763,74 +654,23 @@ for replay_itr in range(replay_num):
     ppo_real_reward_buffer = real_reward_inter * torch.ones(buffer_num)
     
     if reward_type=="confid"  : ppo_gene_reward_buffer = ppo_gene_confid_buffer
-    elif reward_type=="gail"  : ppo_gene_reward_buffer = ppo_gene_confid_buffer #- torch.log(1-ppo_gene_confid_buffer)
+    elif reward_type=="gail"  : ppo_gene_reward_buffer = ppo_gene_confid_buffer
     elif reward_type=="airl"  : ppo_gene_reward_buffer = torch.log(ppo_gene_confid_buffer) - torch.log(1-ppo_gene_confid_buffer)
     elif reward_type=="amdail": ppo_gene_reward_buffer = (amdail_alpha*(1-ppo_gene_confid_buffer) + (1-amdail_alpha)*ppo_gene_confid_buffer) / (1-ppo_gene_confid_buffer) \
                                                          * torch.log((amdail_beta *(1-ppo_gene_confid_buffer) + (1-amdail_beta) *ppo_gene_confid_buffer) \
                                                                    / (amdail_alpha*(1-ppo_gene_confid_buffer) + (1-amdail_alpha)*ppo_gene_confid_buffer))
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     if reward_type=="zero": ppo_gene_reward_buffer = torch.zeros(buffer_num)
     else:
         if norm_type=="robust_scaler":
             ppo_gene_reward_buffer = ppo_gene_reward_buffer - torch.median(ppo_gene_reward_buffer)
             ppo_gene_reward_buffer = 1.3489 * ppo_gene_reward_buffer \
                                    / (torch.quantile(input=ppo_gene_reward_buffer, q=0.75)-torch.quantile(input=ppo_gene_reward_buffer, q=0.25))
-            #ppo_gene_reward_buffer = ppo_gene_reward_buffer - torch.min(ppo_gene_reward_buffer)
-            #ppo_gene_reward_buffer = ppo_gene_reward_buffer / torch.max(ppo_gene_reward_buffer)
-
-
-
-
-
-
-
-
-
         elif norm_type=="standard_scaler":
             ppo_gene_reward_buffer = ppo_gene_reward_buffer - torch.mean(ppo_gene_reward_buffer)
             ppo_gene_reward_buffer = ppo_gene_reward_buffer / torch.std(ppo_gene_reward_buffer)        
         ppo_gene_reward_buffer = ppo_gene_reward_buffer + gene_reward_inter
         if reward_type=="clip": ppo_gene_reward_buffer = torch.where(ppo_gene_reward_buffer>0.0, ppo_gene_reward_buffer, torch.zeros(buffer_num))
-        ##################################################################################################################################
-        #reward_threshold = torch.quantile(input=ppo_gene_reward_buffer, q=0.5)
-        #ppo_gene_reward_buffer = torch.where(ppo_gene_reward_buffer>reward_threshold, ppo_gene_reward_buffer, torch.zeros(buffer_num))
-        ##################################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     if replay_itr%valid_ce_interval==0: utils.functions.hist_reward(seed=seed,
                                                                     dir_path=dir_path,
                                                                     dataset_type=dataset_type,
@@ -860,17 +700,11 @@ for replay_itr in range(replay_num):
     #################################################################
     pre_gene_model.load_state_dict(gene_model.state_dict())
     for p in pre_gene_model.parameters(): p.grad = None
-    #if model_mode=="train" : pre_gene_model.train()
-    #elif model_mode=="eval": pre_gene_model.eval()
     gene_model.train()
     pre_gene_model.train()
     #################################################################
     ppo_gene_loss_list = []
     for step_itr in range(disc_step_num):
-        #################################################################
-        #temperature                = random.uniform(1e-8, 1.0)
-        #gene_model.temperature     = temperature
-        #pre_gene_model.temperature = temperature
         #################################################################
         gene_loss = torch.tensor(0., requires_grad=True)
         #################################################################
@@ -938,16 +772,6 @@ for replay_itr in range(replay_num):
             ppo_mix_log_probs_of_post_model = torch.gather(ppo_mix_log_probs_of_post_model, -1, ppo_mix_joint_input_ids[:, 1:].unsqueeze(dim=-1).to(device)).squeeze(-1)
             ppo_mix_log_probs_of_pre_model  = torch.gather(ppo_mix_log_probs_of_pre_model,  -1, ppo_mix_joint_input_ids[:, 1:].unsqueeze(dim=-1).to(device)).squeeze(-1)
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
         #################################################################
         # PPO Loss
         #################################################################
@@ -959,29 +783,17 @@ for replay_itr in range(replay_num):
             ppo_mix_ratio  = torch.where(ppo_mix_target_mask[:, 1:].to(device)==1,
                                          ppo_mix_ratio_[:],
                                          torch.zeros((batch_size, len(ppo_mix_ratio_[0, :])), device=device))
-            if ratio_flag==True:
-                ppo_mix_ratio = (ppo_mix_ratio.sum(dim=-1) / ppo_mix_target_mask[:, 1:].sum(dim=-1).to(device)).exp()
-                #ppo_mix_ratio = ppo_mix_ratio.sum(dim=-1).exp() / ppo_mix_target_mask[:, 1:].sum(dim=-1).to(device)
+            if ratio_flag==True: ppo_mix_ratio = (ppo_mix_ratio.sum(dim=-1) / ppo_mix_target_mask[:, 1:].sum(dim=-1).to(device)).exp()
         else:
             ppo_mix_ratio  = torch.where(ppo_mix_joint_mask[:, 1:].to(device)==1,
                                          ppo_mix_ratio_[:],
                                          torch.zeros((batch_size, len(ppo_mix_ratio_[0, :])), device=device))
-            if ratio_flag==True:
-                ppo_mix_ratio = (ppo_mix_ratio.sum(dim=-1) / ppo_mix_joint_mask[:, 1:].sum(dim=-1).to(device)).exp()
-                #ppo_mix_ratio = ppo_mix_ratio.sum(dim=-1).exp() / ppo_mix_joint_mask[:, 1:].sum(dim=-1).to(device)
+            if ratio_flag==True: ppo_mix_ratio = (ppo_mix_ratio.sum(dim=-1) / ppo_mix_joint_mask[:, 1:].sum(dim=-1).to(device)).exp()
         if ratio_flag==False: ppo_mix_ratio = ppo_mix_ratio.exp()
         del ppo_mix_log_probs_of_post_model, ppo_mix_log_probs_of_pre_model, ppo_mix_ratio_
         torch.cuda.empty_cache()
         #################################################################
         #################################################################
-        #ppo_mix_loss_1 = ppo_mix_reward_batch[:].to(device) * ppo_mix_ratio[:]
-        #ppo_real_loss_2 = ppo_mix_reward_batch[:disc_batch_size].to(device) * ppo_mix_ratio[:disc_batch_size].clamp(min=1.0-ppo_epsilon, max=1.0+ppo_epsilon)
-        #if clip_type=="ppo"     : ppo_gene_loss_2 = ppo_mix_reward_batch[disc_batch_size:].to(device) * ppo_mix_ratio[disc_batch_size:].clamp(min=1.0-ppo_epsilon, max=1.0+ppo_epsilon)
-        #elif clip_type=="amdail": ppo_gene_loss_2 = ppo_mix_reward_batch[disc_batch_size:].to(device) * ppo_mix_ratio[disc_batch_size:].clamp( \
-        #                          min=((amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device)) + (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device))*(1-ppo_epsilon_gene) \
-        #                             - (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device)) / (amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device))),
-        #                          max=((amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device)) + (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device))*(1+ppo_epsilon_gene) \
-        #                             - (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device)) / (amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device))))
         if clip_type=="ppo"     : clip_min, clip_max = 1.0-ppo_epsilon, 1.0+ppo_epsilon
         elif clip_type=="amdail": clip_min, clip_max = ((amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device)) + (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device))*(1-ppo_epsilon_gene) \
                                                             - (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device)) / (amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device))),              \
@@ -997,12 +809,9 @@ for replay_itr in range(replay_num):
             ppo_gene_loss_2 = ppo_mix_reward_batch[disc_batch_size:].unsqueeze(-1).to(device) * ppo_mix_ratio[disc_batch_size:].clamp(min=clip_min,        max=clip_max)
         #################################################################
         #################################################################
-        #ratio_temp    = min(2*(replay_itr+1)/replay_num, 0.9)
-        #ratio_temp    = max((replay_itr+1)/replay_num, 0.2)
-        #ratio_temp    = (replay_itr+1)/replay_num
         ratio_temp    = 0.5
-        ppo_real_loss = ppo_real_alpha * torch.min(ppo_mix_loss_1[:disc_batch_size], ppo_real_loss_2) * (1-ratio_temp) #min(0.9, max(0.1, (-replay_itr+replay_num-1)/replay_num))
-        ppo_gene_loss = ppo_gene_alpha * torch.min(ppo_mix_loss_1[disc_batch_size:], ppo_gene_loss_2) * ratio_temp     #min(0.9, max(0.1, ( replay_itr+1           )/replay_num))
+        ppo_real_loss = ppo_real_alpha * torch.min(ppo_mix_loss_1[:disc_batch_size], ppo_real_loss_2) * (1-ratio_temp)
+        ppo_gene_loss = ppo_gene_alpha * torch.min(ppo_mix_loss_1[disc_batch_size:], ppo_gene_loss_2) * ratio_temp
         del ppo_mix_loss_1, ppo_real_loss_2, ppo_gene_loss_2
         torch.cuda.empty_cache()
         #################################################################
@@ -1016,12 +825,6 @@ for replay_itr in range(replay_num):
         del ppo_real_loss, ppo_gene_loss
         torch.cuda.empty_cache()
         #################################################################
-        #if clip_type=="ppo"     : ratio_clipped = ppo_mix_ratio[disc_batch_size:].clamp(min=1.0-ppo_epsilon, max=1.0+ppo_epsilon)
-        #elif clip_type=="amdail": ratio_clipped = ppo_mix_ratio[disc_batch_size:].clamp( \
-        #                          min=((amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device)) + (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device))*(1-ppo_epsilon_gene) \
-        #                             - (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device)) / (amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device))),
-        #                          max=((amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device)) + (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device))*(1+ppo_epsilon_gene) \
-        #                             - (1-amdail_alpha)*ppo_mix_confid_batch[disc_batch_size:].to(device)) / (amdail_alpha*(1-ppo_mix_confid_batch[disc_batch_size:].to(device))))
         ratio_clipped = ppo_mix_ratio[disc_batch_size:].clamp(min=clip_min, max=clip_max)
         if ratio_flag==True:
             ppo_gene_ratio_log.extend(ppo_mix_ratio[disc_batch_size:].tolist())
@@ -1046,27 +849,6 @@ for replay_itr in range(replay_num):
         gene_optimizer.zero_grad()
         del gene_loss
         torch.cuda.empty_cache()
-        """
-        #################################################################
-        ppo_real_loss.mean().backward(retain_graph=True)
-        torch.nn.utils.clip_grad_norm_(gene_model.parameters(), max_gradient_norm)
-        gene_optimizer.step()
-        gene_scheduler.step()
-        gene_optimizer.zero_grad()
-        #################################################################
-        ppo_gene_loss.mean().backward(retain_graph=True)
-        torch.nn.utils.clip_grad_norm_(gene_model.parameters(), max_gradient_norm)
-        gene_optimizer.step()
-        gene_scheduler.step()
-        gene_optimizer.zero_grad()
-        #################################################################
-        del gene_loss, ppo_gene_loss, ppo_real_loss
-        torch.cuda.empty_cache()
-        #################################################################
-        """
-        
-        
-        
         #################################################################
     if replay_itr%valid_ce_interval==0: utils.functions.hist_gene_loss(seed=seed,
                                                                        dir_path=dir_path,

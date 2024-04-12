@@ -187,9 +187,6 @@ class DebertaClassifier(nn.Module):
     def __init__(self):
         super(DebertaClassifier, self).__init__()
         self.deberta = DebertaModel.from_pretrained("microsoft/deberta-base")
-        #self.deberta = DebertaV2Model.from_pretrained("microsoft/deberta-v2-xlarge")
-        #self.config  = DebertaConfig()
-        #self.deberta = DebertaModel(self.config)
         self.linear = nn.Linear(self.deberta.config.hidden_size, 2)
     def forward(self, input_ids, attention_mask=None):
         output = self.deberta(input_ids=input_ids,
@@ -297,9 +294,6 @@ for replay_itr in range(replay_num):
     # Buffer Generated and Real Text
     # str -> gene_tokenizer -> id| id-> gene_generator -> id
     #################################################################
-    #temperature            = random.uniform(1e-8, 1.0)
-    #gene_model.temperature = temperature
-    #################################################################
     for step_itr in range(gene_step_num):
         #################################################################
         # Decode Sentence
@@ -360,24 +354,6 @@ for replay_itr in range(replay_num):
             item = " ".join(item)
             item = item.strip()
             ppo_gene_joint_text.append(item)
-        """
-        for item in ppo_real_joint_text_:
-            item = item.replace(gene_tokenizer.pad_token, "")
-            item = item.split(gene_tokenizer.bos_token)[1]
-            item = gene_tokenizer.bos_token + " " + item + " " + gene_tokenizer.eos_token
-            item = re.split(" +", item)
-            item = " ".join(item)
-            item = item.strip()
-            ppo_real_joint_text.append(item)
-        for item in ppo_gene_joint_text_:
-            item = item.replace(gene_tokenizer.pad_token, "")
-            item = item.split(gene_tokenizer.bos_token)[1]
-            item = gene_tokenizer.bos_token + " " + item + " " + gene_tokenizer.eos_token
-            item = re.split(" +", item)
-            item = " ".join(item)
-            item = item.strip()
-            ppo_gene_joint_text.append(item)
-        """
         ppo_real_text_buffer.extend(ppo_real_joint_text)
         ppo_gene_text_buffer.extend(ppo_gene_joint_text)
         del ppo_real_joint_text_, ppo_gene_joint_text_, ppo_real_joint_text,  ppo_gene_joint_text
@@ -414,7 +390,6 @@ for replay_itr in range(replay_num):
         torch.cuda.empty_cache()
         #################################################################
         #################################################################
-        #################################################################
         disc_mix_source_batch = []
         disc_mix_target_batch = []
         for item in disc_joint_text:
@@ -440,11 +415,6 @@ for replay_itr in range(replay_num):
             print("####################################################################################################################################################")
         #################################################################
         #################################################################
-        #################################################################
-        #disc_joint_input_ids = disc_tokenizer(disc_joint_text,
-        #                                      padding=True,
-        #                                      return_tensors="pt",
-        #                                      add_special_tokens=False)["input_ids"]
         disc_joint_mask = torch.where(disc_joint_input_ids==disc_tokenizer.pad_token_id, 0, 1)
         del disc_joint_text
         torch.cuda.empty_cache()
@@ -453,9 +423,6 @@ for replay_itr in range(replay_num):
                                 attention_mask=disc_joint_mask.to(device))
         real_logit = disc_logit[:disc_batch_size]
         gene_logit = disc_logit[disc_batch_size:]
-        #################################################################        
-        #real_log_probs = log_softmax(real_logit)[:, 0]
-        #gene_log_probs = log_softmax(gene_logit)[:, 1]
         #################################################################
         real_log_probs = log_softmax(torch.cat((real_logit[:, 0].unsqueeze(-1), gene_logit[:, 0].unsqueeze(-1)), dim=1))[:, 0]
         gene_log_probs = log_softmax(torch.cat((real_logit[:, 1].unsqueeze(-1), gene_logit[:, 1].unsqueeze(-1)), dim=1))[:, 1]
@@ -473,8 +440,6 @@ for replay_itr in range(replay_num):
         # Discriminator Loss
         #################################################################
         disc_loss = disc_alpha * (real_log_probs[:].sum() + gene_log_probs[:].sum()) / batch_size
-        #disc_loss = disc_alpha * (torch.log(real_confid[:]).sum() + torch.log(gene_confid[:]).sum()) / batch_size
-        #disc_loss = disc_alpha * (torch.log(real_confid[:]).sum() + torch.log(1-gene_confid[:]).sum()) / batch_size
         disc_loss_log.append(disc_loss.item())
         del real_log_probs, gene_log_probs
         torch.cuda.empty_cache()
