@@ -1,6 +1,7 @@
 # AMDAIL
 
 This is the repository for the paper "Adversarial Imitation Learning with Controllable Rewards for Text Generation".
+https://link.springer.com/chapter/10.1007/978-3-031-43412-9_8
 
 # Scripts
 
